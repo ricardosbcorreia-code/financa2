@@ -1,0 +1,62 @@
+/* Design System & Tokens - Finança2 */
+
+:root {
+  /* Cores Base HSL */
+  --bg-primary: hsl(222, 47%, 10%);
+  --bg-secondary: hsl(222, 47%, 13%);
+  --bg-card: hsl(222, 44%, 16%);
+  --bg-card-hover: hsl(222, 44%, 19%);
+  --bg-input: hsl(222, 40%, 12%);
+
+  /* Cores de Destaque */
+  --primary: hsl(217, 91%, 60%);
+  --primary-hover: hsl(217, 91%, 65%);
+  --primary-glow: hsla(217, 91%, 60%, 0.25);
+
+  --accent-ricardo: hsl(210, 100%, 62%);
+  --accent-ricardo-bg: hsla(210, 100%, 62%, 0.15);
+
+  --accent-natalia: hsl(335, 90%, 65%);
+  --accent-natalia-bg: hsla(335, 90%, 65%, 0.15);
+
+  --success: hsl(152, 76%, 45%);
+  --success-bg: hsla(152, 76%, 45%, 0.15);
+
+  --warning: hsl(38, 92%, 50%);
+  --warning-bg: hsla(38, 92%, 50%, 0.15);
+
+  --danger: hsl(0, 84%, 60%);
+  --danger-bg: hsla(0, 84%, 60%, 0.15);
+
+  /* Texto */
+  --text-main: hsl(210, 40%, 98%);
+  --text-muted: hsl(215, 20%, 65%);
+  --text-dim: hsl(215, 15%, 45%);
+
+  /* Bordas e Divisores */
+  --border-subtle: hsla(215, 30%, 35%, 0.25);
+  --border-focus: hsla(217, 91%, 60%, 0.5);
+
+  /* Efeitos e Sombras */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --glass-bg: hsla(222, 47%, 13%, 0.85);
+  --glass-border: hsla(215, 40%, 60%, 0.15);
+
+  /* Dimensões e Raios */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-pill: 9999px;
+
+  /* Tipografia */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.35rem;
+  --font-size-2xl: 1.75rem;
+  --font-size-3xl: 2.25rem;
+}

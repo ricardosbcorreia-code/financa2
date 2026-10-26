@@ -1,0 +1,19 @@
+{
+  "name": "Finança2 — Controle Financeiro do Casal",
+  "short_name": "Finança2",
+  "description": "Controle financeiro doméstico inteligente, rápido e privado para Ricardo e Natália.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d1322",
+  "theme_color": "#0d1322",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

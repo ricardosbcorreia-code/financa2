@@ -1,0 +1,665 @@
+/* Componentes de UI - Finança2 */
+
+/* --- NAVEGADOR DE MÊS --- */
+.month-selector {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  margin-bottom: 16px;
+}
+
+.month-title {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.01em;
+}
+
+.month-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.month-btn:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-main);
+}
+
+/* --- CARDS DO DASHBOARD (KPIS) --- */
+.kpi-main-card {
+  background: linear-gradient(135deg, hsl(222, 44%, 18%) 0%, hsl(222, 44%, 14%) 100%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-main-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, var(--primary-glow) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.kpi-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.kpi-amount-large {
+  font-size: var(--font-size-3xl);
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin-bottom: 8px;
+}
+
+.kpi-comparison {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.kpi-comparison.down {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.kpi-comparison.up {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.kpi-comparison.neutral {
+  background: var(--border-subtle);
+  color: var(--text-muted);
+}
+
+/* Card Quem Pagou (Ricardo vs Natália) */
+.split-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.card-title {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.split-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.split-user {
+  padding: 10px;
+  border-radius: var(--radius-sm);
+}
+
+.split-user.ricardo {
+  background: var(--accent-ricardo-bg);
+  border-left: 3px solid var(--accent-ricardo);
+}
+
+.split-user.natalia {
+  background: var(--accent-natalia-bg);
+  border-left: 3px solid var(--accent-natalia);
+}
+
+.split-user-name {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.split-user.ricardo .split-user-name { color: var(--accent-ricardo); }
+.split-user.natalia .split-user-name { color: var(--accent-natalia); }
+
+.split-user-val {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.split-user-pct {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+/* Barra de Proporção Visual */
+.proportion-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-input);
+  border-radius: var(--radius-pill);
+  display: flex;
+  overflow: hidden;
+}
+
+.prop-ricardo {
+  background: var(--accent-ricardo);
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+.prop-natalia {
+  background: var(--accent-natalia);
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+/* Natureza dos Gastos (Familiar vs Individual) */
+.nature-stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 10px;
+}
+
+.nature-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nature-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+/* Gráfico de Categorias */
+.category-item {
+  margin-bottom: 12px;
+}
+
+.category-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-xs);
+  margin-bottom: 4px;
+}
+
+.category-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.category-amount {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.category-bar-bg {
+  width: 100%;
+  height: 7px;
+  background: var(--bg-input);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.category-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width 0.5s ease;
+}
+
+/* --- FORMULÁRIO RÁPIDO DE LANÇAMENTO --- */
+.form-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-md);
+}
+
+.form-title {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-label {
+  display: block;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+/* Campo de Valor em Grande Destaque */
+.amount-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.amount-prefix {
+  position: absolute;
+  left: 14px;
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--primary);
+  pointer-events: none;
+}
+
+.amount-input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px 14px 14px 50px;
+  font-size: var(--font-size-2xl);
+  font-weight: 800;
+  color: var(--text-main);
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.amount-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.text-input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  font-size: var(--font-size-base);
+  color: var(--text-main);
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.text-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+/* Pílula de Sugestão Automática de Categoria */
+.suggestion-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: hsla(217, 91%, 60%, 0.12);
+  border: 1px dashed var(--primary);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  margin-top: 6px;
+  font-size: var(--font-size-xs);
+  color: var(--primary);
+  animation: pulseLight 1.5s infinite alternate;
+}
+
+@keyframes pulseLight {
+  from { opacity: 0.85; }
+  to { opacity: 1; }
+}
+
+/* Grid de Categorias em Pílula */
+.category-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  padding: 8px 12px;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chip-btn:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-main);
+}
+
+.chip-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+  font-weight: 700;
+  box-shadow: 0 2px 8px var(--primary-glow);
+}
+
+/* Seletor de Natureza e Pagador */
+.pill-group {
+  display: flex;
+  gap: 8px;
+}
+
+.pill-option {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px 8px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pill-option.active {
+  background: var(--bg-card-hover);
+  border-color: var(--border-focus);
+  color: var(--text-main);
+}
+
+.pill-option.active.ricardo {
+  border-color: var(--accent-ricardo);
+  color: var(--accent-ricardo);
+  background: var(--accent-ricardo-bg);
+}
+
+.pill-option.active.natalia {
+  border-color: var(--accent-natalia);
+  color: var(--accent-natalia);
+  background: var(--accent-natalia-bg);
+}
+
+/* Seção Expansível "+ Detalhes" */
+.expand-toggle {
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+
+.expandable-content {
+  background: hsla(222, 40%, 12%, 0.6);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+/* Botão Principal Salvar */
+.submit-btn {
+  width: 100%;
+  background: linear-gradient(135deg, var(--primary) 0%, hsl(217, 91%, 50%) 100%);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 14px;
+  color: white;
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px var(--primary-glow);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.submit-btn:hover {
+  background: linear-gradient(135deg, var(--primary-hover) 0%, var(--primary) 100%);
+  transform: translateY(-1px);
+}
+
+.submit-btn:active {
+  transform: translateY(1px);
+}
+
+/* --- HISTÓRICO DE DESPESAS --- */
+.search-bar {
+  margin-bottom: 12px;
+}
+
+.filter-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+.filter-chip {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  padding: 6px 12px;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.filter-chip.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  font-weight: 600;
+}
+
+.transaction-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  transition: all 0.2s ease;
+}
+
+.transaction-card:hover {
+  background: var(--bg-card-hover);
+}
+
+.tx-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.tx-icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.tx-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.tx-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tx-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.tx-badge {
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.tx-badge.ricardo {
+  background: var(--accent-ricardo-bg);
+  color: var(--accent-ricardo);
+}
+
+.tx-badge.natalia {
+  background: var(--accent-natalia-bg);
+  color: var(--accent-natalia);
+}
+
+.tx-right {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.tx-amount {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.tx-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 4px;
+  transition: color 0.2s ease;
+}
+
+.tx-delete-btn:hover {
+  color: var(--danger);
+}
+
+/* Estado Vazio */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+}
+
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 12px;
+  opacity: 0.6;
+}
+
+.empty-title {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+/* Configurações & Sincronização */
+.settings-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.settings-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  color: var(--text-main);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 8px;
+  transition: all 0.2s ease;
+}
+
+.settings-btn:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-focus);
+}
