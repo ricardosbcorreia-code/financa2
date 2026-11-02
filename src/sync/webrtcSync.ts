@@ -1,27 +1,25 @@
+import Peer, { DataConnection } from 'peerjs';
 import { store } from '../state';
 import { mergeBackupData } from './importExport';
+import { MergeResult } from './mergeEngine';
+
+const PEER_PREFIX = 'financa2-sync-room-';
+
+export interface SyncCallbacks {
+  onStatusChange?: (status: string) => void;
+  onSuccess?: (result: MergeResult) => void;
+  onError?: (errMessage: string) => void;
+}
 
 /**
- * Gerenciador de conexão WebRTC Peer-to-Peer para troca direta entre smartphones.
+ * Gerenciador de conexão WebRTC P2P real usando PeerJS + STUN.
+ * Permite parear os dois celulares usando apenas um código curto de 6 dígitos ou leitura de QR Code,
+ * realizando a troca bidirecional automática (Aparelho 1 <-> Aparelho 2) sem copiar textos longos.
  */
 export class P2PSyncService {
-  private peerConnection: RTCPeerConnection | null = null;
-  private dataChannel: RTCDataChannel | null = null;
+  private peer: Peer | null = null;
+  private conn: DataConnection | null = null;
 
-  private createConnection(): RTCPeerConnection {
-    // Utiliza servidores STUN públicos gratuitos para negociação de ICE na rede Wi-Fi local
-    const pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-      ]
-    });
-    return pc;
-  }
-
-  /**
-   * Prepara os dados locais para envio via P2P
-   */
   public getLocalPayload() {
     return {
       version: '2.0.0',
@@ -36,130 +34,190 @@ export class P2PSyncService {
   }
 
   /**
-   * Inicia o fluxo de Oferta (Dispositivo A)
+   * Gera um código numérico curto de 6 dígitos (ex: "482910")
    */
-  public async createOffer(): Promise<{ offerCode: string; onConnected: Promise<void> }> {
-    this.peerConnection = this.createConnection();
-    this.dataChannel = this.peerConnection.createDataChannel('financa2_sync', {
-      ordered: true
-    });
-
-    const connectedPromise = new Promise<void>((resolve, reject) => {
-      if (!this.dataChannel) return reject(new Error('DataChannel não inicializado'));
-
-      this.dataChannel.onopen = () => {
-        // Envia payload local
-        const payload = JSON.stringify(this.getLocalPayload());
-        this.dataChannel?.send(payload);
-      };
-
-      this.dataChannel.onmessage = async (event) => {
-        try {
-          const remoteData = JSON.parse(event.data);
-          await mergeBackupData(remoteData);
-          resolve();
-        } catch (err) {
-          reject(err);
-        }
-      };
-    });
-
-    const offer = await this.peerConnection.createOffer();
-    await this.peerConnection.setLocalDescription(offer);
-
-    // Aguarda coleta dos candidatos ICE locais (timeout máx 1s para velocidade)
-    await new Promise<void>((resolve) => {
-      if (this.peerConnection?.iceGatheringState === 'complete') {
-        resolve();
-      } else {
-        const checkState = () => {
-          if (this.peerConnection?.iceGatheringState === 'complete') {
-            this.peerConnection.removeEventListener('icegatheringstatechange', checkState);
-            resolve();
-          }
-        };
-        this.peerConnection?.addEventListener('icegatheringstatechange', checkState);
-        setTimeout(resolve, 800);
-      }
-    });
-
-    const offerSdp = this.peerConnection.localDescription?.sdp || '';
-    // Codifica oferta em base64 segura para QR code
-    const offerCode = btoa(unescape(encodeURIComponent(JSON.stringify({ sdp: offerSdp, type: 'offer' }))));
-
-    return { offerCode, onConnected: connectedPromise };
+  private generateRoomPin(): string {
+    return String(Math.floor(100000 + Math.random() * 900000));
   }
 
   /**
-   * Processa a Oferta e gera a Resposta (Dispositivo B)
+   * Inicia sala de pareamento no Aparelho 1 (Anfitrião)
+   * Retorna o PIN de 6 dígitos para exibir em tela e no QR Code.
    */
-  public async handleOfferAndCreateAnswer(
-    offerCode: string
-  ): Promise<{ answerCode: string; onConnected: Promise<void> }> {
-    this.peerConnection = this.createConnection();
+  public async startHostSession(callbacks: SyncCallbacks): Promise<string> {
+    this.close();
 
-    const offerJson = JSON.parse(decodeURIComponent(escape(atob(offerCode))));
+    const pin = this.generateRoomPin();
+    const peerId = `${PEER_PREFIX}${pin}`;
 
-    const connectedPromise = new Promise<void>((resolve, reject) => {
-      this.peerConnection!.ondatachannel = (event) => {
-        this.dataChannel = event.channel;
-
-        this.dataChannel.onopen = () => {
-          // Envia seus próprios dados para o outro celular
-          const payload = JSON.stringify(this.getLocalPayload());
-          this.dataChannel?.send(payload);
-        };
-
-        this.dataChannel.onmessage = async (msgEvent) => {
-          try {
-            const remoteData = JSON.parse(msgEvent.data);
-            await mergeBackupData(remoteData);
-            resolve();
-          } catch (err) {
-            reject(err);
+    return new Promise<string>((resolve, reject) => {
+      try {
+        this.peer = new Peer(peerId, {
+          config: {
+            iceServers: [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:stun1.l.google.com:19302' },
+              { urls: 'stun:stun2.l.google.com:19302' }
+            ]
           }
-        };
-      };
-    });
+        });
 
-    await this.peerConnection.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: offerJson.sdp }));
-    const answer = await this.peerConnection.createAnswer();
-    await this.peerConnection.setLocalDescription(answer);
+        const timeout = window.setTimeout(() => {
+          reject(new Error('Tempo esgotado ao registrar sala de pareamento. Verifique sua conexão com a internet.'));
+        }, 12000);
 
-    await new Promise<void>((resolve) => {
-      if (this.peerConnection?.iceGatheringState === 'complete') {
-        resolve();
-      } else {
-        const checkState = () => {
-          if (this.peerConnection?.iceGatheringState === 'complete') {
-            this.peerConnection.removeEventListener('icegatheringstatechange', checkState);
-            resolve();
+        this.peer.on('open', () => {
+          window.clearTimeout(timeout);
+          callbacks.onStatusChange?.('Aguardando leitura do QR Code ou código no outro celular...');
+          resolve(pin);
+        });
+
+        this.peer.on('connection', (incomingConn) => {
+          this.conn = incomingConn;
+          callbacks.onStatusChange?.('📲 Outro celular detectado! Trocando dados...');
+
+          incomingConn.on('open', () => {
+            // Assim que abrir o canal, envia nosso payload completo para o celular 2
+            incomingConn.send({
+              type: 'SYNC_PAYLOAD',
+              payload: this.getLocalPayload()
+            });
+          });
+
+          incomingConn.on('data', async (rawData: any) => {
+            try {
+              const msg = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
+              if (msg && msg.type === 'SYNC_PAYLOAD' && msg.payload) {
+                const mergeRes = await mergeBackupData(msg.payload);
+                // Envia confirmação final ao celular 2
+                incomingConn.send({ type: 'SYNC_ACK' });
+                callbacks.onSuccess?.(mergeRes);
+              }
+            } catch (err) {
+              callbacks.onError?.('Erro ao processar dados recebidos do outro aparelho.');
+            }
+          });
+
+          incomingConn.on('error', () => {
+            callbacks.onError?.('Falha na transmissão de dados entre os aparelhos.');
+          });
+        });
+
+        this.peer.on('error', (err: any) => {
+          window.clearTimeout(timeout);
+          if (err?.type === 'unavailable-id') {
+            // Se o código de 6 dígitos colidir, tenta gerar outro automaticamente
+            this.startHostSession(callbacks).then(resolve).catch(reject);
+            return;
           }
-        };
-        this.peerConnection?.addEventListener('icegatheringstatechange', checkState);
-        setTimeout(resolve, 800);
+          callbacks.onError?.('Erro de comunicação P2P: verifique se ambos estão conectados à internet.');
+          reject(err);
+        });
+      } catch (err) {
+        reject(err);
       }
     });
-
-    const answerSdp = this.peerConnection.localDescription?.sdp || '';
-    const answerCode = btoa(unescape(encodeURIComponent(JSON.stringify({ sdp: answerSdp, type: 'answer' }))));
-
-    return { answerCode, onConnected: connectedPromise };
   }
 
-  public async completeHandshake(answerCode: string): Promise<void> {
-    if (!this.peerConnection) return;
-    const answerJson = JSON.parse(decodeURIComponent(escape(atob(answerCode))));
-    await this.peerConnection.setRemoteDescription(
-      new RTCSessionDescription({ type: 'answer', sdp: answerJson.sdp })
-    );
+  /**
+   * Conecta o Aparelho 2 ao Aparelho 1 usando o PIN de 6 dígitos (lido via QR Code ou digitado)
+   */
+  public async joinSessionWithPin(rawPin: string, callbacks: SyncCallbacks): Promise<void> {
+    this.close();
+
+    // Limpa espaços, traços ou prefixos de URL caso venha da câmera
+    const cleanPin = rawPin.replace(/\D/g, '').slice(-6);
+    if (cleanPin.length !== 6) {
+      callbacks.onError?.('Código inválido. O código de pareamento deve conter 6 dígitos.');
+      return;
+    }
+
+    const targetPeerId = `${PEER_PREFIX}${cleanPin}`;
+    callbacks.onStatusChange?.(`Conectando ao aparelho (${cleanPin.slice(0, 3)}-${cleanPin.slice(3)})...`);
+
+    return new Promise<void>((resolve, reject) => {
+      this.peer = new Peer({
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' }
+          ]
+        }
+      });
+
+      let mergeResultCache: MergeResult | null = null;
+      let finished = false;
+
+      const finishSuccess = (res: MergeResult) => {
+        if (finished) return;
+        finished = true;
+        callbacks.onSuccess?.(res);
+        setTimeout(() => this.close(), 800);
+        resolve();
+      };
+
+      this.peer.on('open', () => {
+        const conn = this.peer!.connect(targetPeerId, { reliable: true });
+        this.conn = conn;
+
+        conn.on('open', () => {
+          callbacks.onStatusChange?.('🔄 Conectado! Sincronizando lançamentos...');
+          // Envia imediatamente os dados locais do Aparelho 2 para o Aparelho 1
+          conn.send({
+            type: 'SYNC_PAYLOAD',
+            payload: this.getLocalPayload()
+          });
+        });
+
+        conn.on('data', async (rawData: any) => {
+          try {
+            const msg = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
+            if (msg && msg.type === 'SYNC_PAYLOAD' && msg.payload) {
+              mergeResultCache = await mergeBackupData(msg.payload);
+              // Se já recebeu o payload do Aparelho 1, aguarda brevemente o ACK ou finaliza
+              setTimeout(() => {
+                if (mergeResultCache) finishSuccess(mergeResultCache);
+              }, 500);
+            } else if (msg && msg.type === 'SYNC_ACK' && mergeResultCache) {
+              finishSuccess(mergeResultCache);
+            }
+          } catch (err) {
+            callbacks.onError?.('Erro ao mesclar os dados recebidos.');
+            reject(err);
+          }
+        });
+
+        conn.on('error', (err) => {
+          callbacks.onError?.('Falha durante a troca de dados.');
+          reject(err);
+        });
+      });
+
+      this.peer.on('error', (err: any) => {
+        if (err?.type === 'peer-unavailable') {
+          callbacks.onError?.('Código não encontrado ou expirado. Verifique se a tela do código continua aberta no outro celular.');
+        } else {
+          callbacks.onError?.('Não foi possível conectar ao outro celular. Verifique a conexão.');
+        }
+        reject(err);
+      });
+    });
   }
 
   public close(): void {
-    this.dataChannel?.close();
-    this.peerConnection?.close();
-    this.dataChannel = null;
-    this.peerConnection = null;
+    try {
+      this.conn?.close();
+    } catch {
+      // Ignore
+    }
+    try {
+      this.peer?.destroy();
+    } catch {
+      // Ignore
+    }
+    this.conn = null;
+    this.peer = null;
   }
 }
 

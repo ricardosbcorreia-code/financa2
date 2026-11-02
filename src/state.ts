@@ -24,7 +24,7 @@ type Listener = () => void;
 
 class AppStore {
   private activeTab: ActiveTab = 'dashboard';
-  private selectedMonth: string = '2026-10'; // Padrão: Outubro de 2026
+  private selectedMonth: string = getTodayIso().slice(0, 7); // Sempre inicia no mês vigente (a partir do dia 01)
   private activeProfile: UserProfile = 'ricardo'; // Dono do aparelho
   private categories: Category[] = [...INITIAL_CATEGORIES];
   private rules: Rule[] = [...INITIAL_RULES];

@@ -3,6 +3,9 @@ import { formatCurrency, formatDateBR, formatMonthYearBR, getTodayIso, parseCurr
 import { IncomeEntry, IncomeType, UserProfile } from '../types';
 import { mergeBackupData, restoreCompleteBackup, validateBackupPayload } from '../sync/importExport';
 import { p2pService } from '../sync/webrtcSync';
+import { showConflictResolutionModal } from './ConflictModal';
+import QRCode from 'qrcode';
+import jsQR from 'jsqr';
 
 export function renderSettingsView(container: HTMLElement, showToast: (msg: string) => void): void {
   const activeProfile = store.getActiveProfile();
@@ -423,70 +426,104 @@ export function renderSettingsView(container: HTMLElement, showToast: (msg: stri
   }
 
   async function showP2PModal() {
+    let cameraStream: MediaStream | null = null;
+    let scanFrameId: number | null = null;
+
+    function stopCamera() {
+      if (scanFrameId) {
+        cancelAnimationFrame(scanFrameId);
+        scanFrameId = null;
+      }
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop());
+        cameraStream = null;
+      }
+    }
+
     const modal = document.createElement('div');
     modal.style.position = 'fixed';
     modal.style.inset = '0';
-    modal.style.backgroundColor = 'rgba(0,0,0,0.85)';
+    modal.style.backgroundColor = 'rgba(0,0,0,0.88)';
     modal.style.display = 'flex';
     modal.style.alignItems = 'center';
     modal.style.justifyContent = 'center';
-    modal.style.zIndex = '200';
+    modal.style.zIndex = '250';
     modal.style.padding = '16px';
+    modal.style.overflowY = 'auto';
 
     modal.innerHTML = `
-      <div style="background: var(--bg-card); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); padding: 20px; max-width: 400px; width: 100%; box-shadow: var(--shadow-lg);">
-        <div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 8px; text-align: center;">Sincronização P2P Wi-Fi</div>
-        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px; text-align: center;">
-          Conecte os celulares de Ricardo e Natália na mesma rede doméstica para trocar registros instantaneamente.
+      <div style="background: var(--bg-card); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); padding: 20px; max-width: 410px; width: 100%; box-shadow: var(--shadow-lg);">
+        <div style="font-size: 1.15rem; font-weight: 800; margin-bottom: 6px; text-align: center;">📲 Sincronização Rápida P2P</div>
+        <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 16px; text-align: center;">
+          Sincronize os celulares de Ricardo e Natália instantaneamente via QR Code ou código curto de 6 dígitos.
         </p>
 
         <div id="p2p-step-1" style="display: flex; flex-direction: column; gap: 10px;">
-          <button id="p2p-start-offer-btn" class="submit-btn">
-            <span>📲 Aparelho 1: Gerar Código de Pareamento</span>
+          <button id="p2p-start-offer-btn" class="submit-btn" style="padding: 13px;">
+            <span>📡 Celular 1: Exibir QR Code / Código</span>
           </button>
-          <button id="p2p-start-answer-btn" class="settings-btn" style="justify-content: center;">
-            <span>📥 Aparelho 2: Conectar ao Código</span>
+          <button id="p2p-start-answer-btn" class="settings-btn" style="justify-content: center; padding: 13px; border-color: var(--primary); color: var(--primary);">
+            <span>📷 Celular 2: Ler QR Code ou Digitar Código</span>
           </button>
         </div>
 
+        <!-- VISÃO CELULAR 1: ANFITRIÃO (QR CODE REAL + PIN DE 6 DÍGITOS) -->
         <div id="p2p-offer-view" style="display: none; text-align: center;">
-          <div style="background: white; padding: 12px; border-radius: var(--radius-md); display: inline-block; margin-bottom: 12px;">
-            <svg width="150" height="150" viewBox="0 0 100 100" fill="black">
-              <rect width="100" height="100" fill="white"/>
-              <rect x="10" y="10" width="25" height="25" fill="#0f172a"/>
-              <rect x="15" y="15" width="15" height="15" fill="white"/>
-              <rect x="18" y="18" width="9" height="9" fill="#0f172a"/>
-              <rect x="65" y="10" width="25" height="25" fill="#0f172a"/>
-              <rect x="70" y="15" width="15" height="15" fill="white"/>
-              <rect x="73" y="18" width="9" height="9" fill="#0f172a"/>
-              <rect x="10" y="65" width="25" height="25" fill="#0f172a"/>
-              <rect x="15" y="70" width="15" height="15" fill="white"/>
-              <rect x="18" y="73" width="9" height="9" fill="#0f172a"/>
-              <rect x="42" y="15" width="8" height="8" fill="#0f172a"/>
-              <rect x="45" y="35" width="15" height="8" fill="#0f172a"/>
-              <rect x="25" y="45" width="10" height="12" fill="#0f172a"/>
-              <rect x="65" y="50" width="12" height="15" fill="#0f172a"/>
-              <rect x="45" y="65" width="18" height="10" fill="#0f172a"/>
-              <rect x="75" y="75" width="12" height="12" fill="#0f172a"/>
-            </svg>
+          <div style="background: white; padding: 12px; border-radius: var(--radius-md); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 10px; min-width: 190px; min-height: 190px;">
+            <img id="p2p-qr-img" alt="QR Code de Pareamento" style="width: 170px; height: 170px; display: none;" />
+            <div id="p2p-qr-loading" style="color: #0f172a; font-size: 0.8rem; font-weight: 600;">Gerando código...</div>
           </div>
-          <div style="font-size: 0.75rem; color: var(--success); font-weight: 600; margin-bottom: 8px;">
-            ● Aguardando conexão do outro aparelho...
+
+          <div style="margin-bottom: 10px;">
+            <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Código de 6 Dígitos</div>
+            <div id="p2p-pin-display" style="font-size: 1.9rem; font-weight: 900; letter-spacing: 0.14em; color: var(--primary); margin: 2px 0;">
+              --- ---
+            </div>
           </div>
-          <textarea id="p2p-offer-code" class="text-input" readonly style="font-size: 0.65rem; height: 50px; margin-bottom: 10px;"></textarea>
-          <button id="p2p-copy-offer-btn" class="settings-btn" style="justify-content: center; padding: 6px; font-size: 0.75rem;">
-            Copiar Código de Pareamento
-          </button>
+
+          <div id="p2p-host-status" style="font-size: 0.78rem; color: var(--success); font-weight: 600; padding: 8px 10px; background: var(--bg-input); border-radius: var(--radius-sm);">
+            ● Conectando sala P2P...
+          </div>
         </div>
 
+        <!-- VISÃO CELULAR 2: CONVIDADO (LEITOR DE CÂMERA + CAMPO DE 6 DÍGITOS) -->
         <div id="p2p-answer-view" style="display: none;">
-          <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">
-            Cole o código de pareamento gerado no outro celular:
-          </p>
-          <textarea id="p2p-input-code" class="text-input" placeholder="Cole o código aqui..." style="font-size: 0.75rem; height: 70px; margin-bottom: 10px;"></textarea>
-          <button id="p2p-connect-btn" class="submit-btn" style="padding: 10px;">
-            Confirmar Conexão
+          <!-- Área da Câmera -->
+          <div style="margin-bottom: 14px; text-align: center;">
+            <button type="button" id="p2p-open-camera-btn" class="submit-btn" style="padding: 11px; margin-bottom: 8px;">
+              <span>📷 Abrir Câmera para Ler QR Code</span>
+            </button>
+
+            <div id="p2p-camera-box" style="display: none; position: relative; border-radius: var(--radius-md); overflow: hidden; border: 2px solid var(--primary); background: #000;">
+              <video id="p2p-video" playsinline muted style="width: 100%; max-height: 220px; object-fit: cover; display: block;"></video>
+              <canvas id="p2p-canvas" style="display: none;"></canvas>
+              <div style="position: absolute; bottom: 6px; left: 0; right: 0; text-align: center; font-size: 0.72rem; color: white; background: rgba(0,0,0,0.6); padding: 4px;">
+                Aponte a câmera para o QR Code na tela do outro celular
+              </div>
+            </div>
+          </div>
+
+          <div style="text-align: center; font-size: 0.72rem; color: var(--text-muted); margin: 8px 0; text-transform: uppercase; font-weight: 700;">
+            — OU DIGITE O CÓDIGO DE 6 DÍGITOS —
+          </div>
+
+          <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+            <input
+              type="text"
+              id="p2p-input-pin"
+              class="text-input"
+              placeholder="Ex: 482 910"
+              inputmode="numeric"
+              maxlength="7"
+              style="text-align: center; font-size: 1.35rem; font-weight: 800; letter-spacing: 0.15em;"
+            />
+          </div>
+
+          <button id="p2p-connect-btn" class="submit-btn" style="padding: 12px;">
+            <span>🔗 Conectar e Sincronizar Agora</span>
           </button>
+
+          <div id="p2p-guest-status" style="display: none; margin-top: 10px; font-size: 0.78rem; text-align: center; padding: 8px; background: var(--bg-input); border-radius: var(--radius-sm); color: var(--primary); font-weight: 600;"></div>
         </div>
 
         <div style="margin-top: 16px;">
@@ -499,52 +536,159 @@ export function renderSettingsView(container: HTMLElement, showToast: (msg: stri
 
     document.body.appendChild(modal);
 
+    const handleSyncDone = (res: any) => {
+      stopCamera();
+      modal.remove();
+      if (res.conflicts && res.conflicts.length > 0) {
+        showToast(`⚠️ Sincronizado com ${res.conflicts.length} pendência(s) de escolha!`);
+        showConflictResolutionModal(showToast);
+      } else {
+        showToast(`🎉 Sincronização P2P concluída! (${res.addedCount} novos, ${res.updatedCount} atualizados)`);
+      }
+      renderSettingsView(container, showToast);
+    };
+
+    // Fluxo Celular 1 (Gerar QR Code e PIN de 6 dígitos)
     modal.querySelector('#p2p-start-offer-btn')?.addEventListener('click', async () => {
       modal.querySelector('#p2p-step-1')!.setAttribute('style', 'display: none;');
       modal.querySelector('#p2p-offer-view')!.setAttribute('style', 'display: block;');
-      try {
-        const { offerCode, onConnected } = await p2pService.createOffer();
-        const codeEl = modal.querySelector('#p2p-offer-code') as HTMLTextAreaElement;
-        if (codeEl) codeEl.value = offerCode;
 
-        onConnected.then(() => {
-          showToast('🎉 Sincronização P2P concluída com sucesso!');
-          modal.remove();
+      const statusEl = modal.querySelector('#p2p-host-status') as HTMLElement;
+      const pinEl = modal.querySelector('#p2p-pin-display') as HTMLElement;
+      const qrImg = modal.querySelector('#p2p-qr-img') as HTMLImageElement;
+      const qrLoading = modal.querySelector('#p2p-qr-loading') as HTMLElement;
+
+      try {
+        const pin = await p2pService.startHostSession({
+          onStatusChange: (msg) => {
+            if (statusEl) statusEl.textContent = `● ${msg}`;
+          },
+          onSuccess: handleSyncDone,
+          onError: (errMsg) => {
+            if (statusEl) {
+              statusEl.style.color = 'var(--danger)';
+              statusEl.textContent = `⚠️ ${errMsg}`;
+            }
+            showToast(`⚠️ ${errMsg}`);
+          }
         });
-      } catch (err) {
-        showToast('ℹ️ Modo demonstrativo ativo.');
+
+        pinEl.textContent = `${pin.slice(0, 3)} ${pin.slice(3)}`;
+
+        // Gera QR Code real contendo o PIN de pareamento
+        const qrDataUrl = await QRCode.toDataURL(`FINANCA2_SYNC:${pin}`, {
+          width: 220,
+          margin: 1,
+          color: { dark: '#0f172a', light: '#ffffff' }
+        });
+        qrImg.src = qrDataUrl;
+        qrImg.style.display = 'block';
+        qrLoading.style.display = 'none';
+      } catch {
+        if (statusEl) {
+          statusEl.style.color = 'var(--danger)';
+          statusEl.textContent = '⚠️ Sem conexão para abrir sala de pareamento.';
+        }
       }
     });
 
-    modal.querySelector('#p2p-copy-offer-btn')?.addEventListener('click', () => {
-      const codeEl = modal.querySelector('#p2p-offer-code') as HTMLTextAreaElement;
-      navigator.clipboard?.writeText(codeEl.value);
-      showToast('📋 Código copiado para a área de transferência!');
-    });
-
+    // Fluxo Celular 2 (Ler QR Code com a câmera ou digitar os 6 dígitos)
     modal.querySelector('#p2p-start-answer-btn')?.addEventListener('click', () => {
       modal.querySelector('#p2p-step-1')!.setAttribute('style', 'display: none;');
       modal.querySelector('#p2p-answer-view')!.setAttribute('style', 'display: block;');
     });
 
-    modal.querySelector('#p2p-connect-btn')?.addEventListener('click', async () => {
-      const codeInput = (modal.querySelector('#p2p-input-code') as HTMLTextAreaElement).value.trim();
-      if (!codeInput) {
-        showToast('⚠️ Cole o código de pareamento.');
-        return;
+    const connectWithPin = async (pinValue: string) => {
+      stopCamera();
+      const guestStatus = modal.querySelector('#p2p-guest-status') as HTMLElement;
+      if (guestStatus) {
+        guestStatus.style.display = 'block';
+        guestStatus.style.color = 'var(--primary)';
+        guestStatus.textContent = '🔄 Conectando ao outro celular...';
       }
+
       try {
-        const { onConnected } = await p2pService.handleOfferAndCreateAnswer(codeInput);
-        onConnected.then(() => {
-          showToast('🎉 Sincronização P2P concluída com sucesso!');
-          modal.remove();
+        await p2pService.joinSessionWithPin(pinValue, {
+          onStatusChange: (msg) => {
+            if (guestStatus) guestStatus.textContent = msg;
+          },
+          onSuccess: handleSyncDone,
+          onError: (errMsg) => {
+            if (guestStatus) {
+              guestStatus.style.color = 'var(--danger)';
+              guestStatus.textContent = `⚠️ ${errMsg}`;
+            }
+            showToast(`⚠️ ${errMsg}`);
+          }
         });
-      } catch (err) {
-        showToast('⚠️ Código inválido ou erro de conexão local.');
+      } catch {
+        // Tratado no callback onError
+      }
+    };
+
+    // Botão de abrir câmera e escanear QR Code automaticamente via jsQR
+    modal.querySelector('#p2p-open-camera-btn')?.addEventListener('click', async () => {
+      const cameraBox = modal.querySelector('#p2p-camera-box') as HTMLElement;
+      const openBtn = modal.querySelector('#p2p-open-camera-btn') as HTMLButtonElement;
+      const video = modal.querySelector('#p2p-video') as HTMLVideoElement;
+      const canvas = modal.querySelector('#p2p-canvas') as HTMLCanvasElement;
+      const pinInput = modal.querySelector('#p2p-input-pin') as HTMLInputElement;
+
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' }
+        });
+        video.srcObject = cameraStream;
+        await video.play();
+
+        openBtn.style.display = 'none';
+        cameraBox.style.display = 'block';
+
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        const tick = () => {
+          if (!cameraStream) return;
+          if (video.readyState === video.HAVE_ENOUGH_DATA && ctx) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+              inversionAttempts: 'dontInvert'
+            });
+
+            if (code && code.data) {
+              const digits = code.data.replace(/\D/g, '').slice(-6);
+              if (digits.length === 6) {
+                pinInput.value = `${digits.slice(0, 3)} ${digits.slice(3)}`;
+                showToast('✅ QR Code lido! Conectando...');
+                connectWithPin(digits);
+                return;
+              }
+            }
+          }
+          scanFrameId = requestAnimationFrame(tick);
+        };
+
+        scanFrameId = requestAnimationFrame(tick);
+      } catch {
+        showToast('⚠️ Permissão de câmera negada ou indisponível. Digite os 6 dígitos abaixo.');
       }
     });
 
+    const pinInputEl = modal.querySelector('#p2p-input-pin') as HTMLInputElement;
+    pinInputEl?.addEventListener('input', () => {
+      const digits = pinInputEl.value.replace(/\D/g, '').slice(0, 6);
+      pinInputEl.value = digits.length > 3 ? `${digits.slice(0, 3)} ${digits.slice(3)}` : digits;
+    });
+
+    modal.querySelector('#p2p-connect-btn')?.addEventListener('click', () => {
+      const rawPin = pinInputEl?.value || '';
+      connectWithPin(rawPin);
+    });
+
     modal.querySelector('#close-modal-btn')?.addEventListener('click', () => {
+      stopCamera();
       p2pService.close();
       modal.remove();
     });

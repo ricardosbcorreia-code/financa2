@@ -1,5 +1,5 @@
-// Service Worker para funcionamento 100% offline do Finança2 (v2 com Network-First para atualizações rápidas)
-const CACHE_NAME = 'financa2-cache-v2';
+// Service Worker para funcionamento 100% offline do Finança2 (v3 com Network-First para atualizações rápidas)
+const CACHE_NAME = 'financa2-cache-v3';
 
 const STATIC_ASSETS = [
   './',
