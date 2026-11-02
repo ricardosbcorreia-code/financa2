@@ -24,12 +24,14 @@ export class P2PSyncService {
    */
   public getLocalPayload() {
     return {
-      version: '1.0.0',
+      version: '2.0.0',
       exportedAt: new Date().toISOString(),
       activeProfile: store.getActiveProfile(),
       transactions: store.getAllTransactionsRaw(),
       categories: store.getCategories(),
-      rules: store.getRules()
+      rules: store.getRules(),
+      incomes: store.getAllIncomesRaw(),
+      fixedExpenses: store.getAllFixedExpensesRaw()
     };
   }
 

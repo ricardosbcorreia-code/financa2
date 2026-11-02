@@ -613,6 +613,154 @@
   color: var(--danger);
 }
 
+.tx-edit-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 4px;
+  transition: color 0.2s ease;
+}
+
+.tx-edit-btn:hover {
+  color: var(--primary);
+}
+
+/* --- ABA GASTOS FIXOS E ALERTAS (Obs 5 e Obs 4) --- */
+.fixed-expense-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-bottom: 10px;
+  transition: all 0.2s ease;
+}
+
+.fixed-expense-card.overdue {
+  background: linear-gradient(135deg, hsla(0, 84%, 25%, 0.45) 0%, hsla(0, 84%, 15%, 0.35) 100%);
+  border: 2px solid var(--danger);
+  box-shadow: 0 0 14px hsla(0, 84%, 60%, 0.25);
+}
+
+.fixed-expense-card.due_soon {
+  border-color: var(--warning);
+  background: linear-gradient(135deg, hsla(38, 92%, 25%, 0.22) 0%, var(--bg-card) 100%);
+}
+
+.fixed-expense-card.paid {
+  border-color: hsla(152, 76%, 45%, 0.35);
+  opacity: 0.92;
+}
+
+.fixed-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.fixed-badge.overdue {
+  background: var(--danger);
+  color: white;
+  animation: pulseLight 1.1s infinite alternate;
+}
+
+.fixed-badge.due-soon {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border: 1px solid hsla(38, 92%, 50%, 0.4);
+}
+
+.fixed-badge.paid {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.fixed-badge.pending {
+  background: var(--bg-input);
+  color: var(--text-muted);
+}
+
+.fixed-action-btn {
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.fixed-action-btn.pay {
+  background: var(--success);
+  color: white;
+}
+
+.fixed-action-btn.pay.overdue-btn {
+  background: var(--danger);
+  color: white;
+  box-shadow: 0 2px 10px hsla(0, 84%, 60%, 0.4);
+}
+
+.fixed-action-btn.undo {
+  background: var(--bg-input);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+}
+
+/* Banners Globais de Alerta */
+.alert-banner {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+
+.alert-banner.overdue {
+  background: linear-gradient(135deg, hsla(0, 84%, 50%, 0.25), hsla(0, 84%, 35%, 0.35));
+  border: 1.5px solid var(--danger);
+  color: #fecaca;
+}
+
+.alert-banner.due-soon,
+.alert-banner.conflict {
+  background: linear-gradient(135deg, hsla(38, 92%, 50%, 0.2), hsla(38, 92%, 35%, 0.25));
+  border: 1.5px solid var(--warning);
+  color: #fde68a;
+}
+
+.nav-badge {
+  position: absolute;
+  top: 2px;
+  right: 8px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.nav-badge.danger {
+  background: var(--danger);
+}
+
+.nav-badge.warning {
+  background: var(--warning);
+  color: #0f172a;
+}
+
 /* Estado Vazio */
 .empty-state {
   text-align: center;

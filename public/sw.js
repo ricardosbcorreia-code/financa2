@@ -1,5 +1,5 @@
-// Service Worker para funcionamento 100% offline do Finança2
-const CACHE_NAME = 'financa2-cache-v1';
+// Service Worker para funcionamento 100% offline do Finança2 (v2 com Network-First para atualizações rápidas)
+const CACHE_NAME = 'financa2-cache-v2';
 
 const STATIC_ASSETS = [
   './',
@@ -33,32 +33,37 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Ignora chamadas que não sejam GET
   if (event.request.method !== 'GET') return;
+
+  // Para navegação (index.html), usa Network-First para pegar novas versões imediatamente quando houver internet
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          const clone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          return networkResponse;
+        })
+        .catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request)
+      const fetchPromise = fetch(event.request)
         .then((networkResponse) => {
-          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-            return networkResponse;
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
           }
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
           return networkResponse;
         })
-        .catch(() => {
-          // Fallback para index.html se for navegação
-          if (event.request.mode === 'navigate') {
-            return caches.match('./index.html') as Promise<Response>;
-          }
-          return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
-        });
+        .catch(() => cachedResponse);
+
+      return cachedResponse || fetchPromise;
     })
   );
 });

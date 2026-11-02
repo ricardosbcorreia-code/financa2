@@ -1,14 +1,24 @@
 import { store } from '../state';
-import { formatCurrency, formatDateBR } from '../formatters';
-import { UserProfile } from '../types';
+import { formatCurrency, formatDateBR, formatMonthYearBR, getTodayIso, parseCurrencyInput } from '../formatters';
+import { IncomeEntry, IncomeType, UserProfile } from '../types';
 import { mergeBackupData, restoreCompleteBackup, validateBackupPayload } from '../sync/importExport';
 import { p2pService } from '../sync/webrtcSync';
 
 export function renderSettingsView(container: HTMLElement, showToast: (msg: string) => void): void {
   const activeProfile = store.getActiveProfile();
+  const selectedMonth = store.getSelectedMonth();
   const txs = store.getTransactions();
   const categories = store.getCategories();
   const rules = store.getRules();
+  const monthIncomes = store.getIncomesForMonth(selectedMonth);
+
+  const ricardoIncomeCents = monthIncomes
+    .filter((i) => i.receivedBy === 'ricardo')
+    .reduce((acc, i) => acc + i.amountCents, 0);
+  const nataliaIncomeCents = monthIncomes
+    .filter((i) => i.receivedBy === 'natalia')
+    .reduce((acc, i) => acc + i.amountCents, 0);
+  const totalIncomeCents = ricardoIncomeCents + nataliaIncomeCents;
 
   function downloadFile(content: string, filename: string, type: string) {
     const blob = new Blob([content], { type });
@@ -24,12 +34,14 @@ export function renderSettingsView(container: HTMLElement, showToast: (msg: stri
 
   function exportJsonBackup() {
     const backupData = {
-      version: '1.0.0',
+      version: '2.0.0',
       exportedAt: new Date().toISOString(),
       activeProfile,
       transactions: store.getAllTransactionsRaw(),
       categories,
-      rules
+      rules,
+      incomes: store.getAllIncomesRaw(),
+      fixedExpenses: store.getAllFixedExpensesRaw()
     };
     const jsonStr = JSON.stringify(backupData, null, 2);
     const dateStr = new Date().toISOString().slice(0, 10);
@@ -85,7 +97,13 @@ export function renderSettingsView(container: HTMLElement, showToast: (msg: stri
           }
         } else {
           const res = await mergeBackupData(data);
-          showToast(`✅ Mesclagem concluída: ${res.addedCount} novos, ${res.updatedCount} atualizados!`);
+          if (res.conflicts && res.conflicts.length > 0) {
+            showToast(
+              `⚠️ Mesclagem concluída com ${res.conflicts.length} pendência(s) de escolha (verifique o topo da tela)!`
+            );
+          } else {
+            showToast(`✅ Mesclagem concluída: ${res.addedCount} novos, ${res.updatedCount} atualizados!`);
+          }
           renderSettingsView(container, showToast);
         }
       } catch (err) {
@@ -93,6 +111,194 @@ export function renderSettingsView(container: HTMLElement, showToast: (msg: stri
       }
     };
     input.click();
+  }
+
+  function showIncomeModal(existingIncome?: IncomeEntry) {
+    const modal = document.createElement('div');
+    modal.className = 'modal-backdrop';
+    modal.style.position = 'fixed';
+    modal.style.inset = '0';
+    modal.style.backgroundColor = 'rgba(0,0,0,0.85)';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.zIndex = '250';
+    modal.style.padding = '16px';
+
+    let receivedBy: UserProfile = existingIncome?.receivedBy || activeProfile;
+    let incomeType: IncomeType = existingIncome?.type || 'salary';
+
+    const initialVal = existingIncome
+      ? (existingIncome.amountCents / 100).toLocaleString('pt-BR', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        })
+      : '';
+
+    const defaultDate = existingIncome?.date || (getTodayIso().startsWith(selectedMonth) ? getTodayIso() : `${selectedMonth}-05`);
+
+    modal.innerHTML = `
+      <div style="background: var(--bg-card); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); padding: 20px; width: 100%; max-width: 400px; box-shadow: var(--shadow-lg);">
+        <div style="font-size: 1.1rem; font-weight: 700; margin-bottom: 12px;">
+          ${existingIncome ? '✏️ Editar Entrada' : '💰 Nova Entrada / Receita'} (${formatMonthYearBR(selectedMonth)})
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Valor Recebido (R$)</label>
+          <div class="amount-input-wrapper">
+            <span class="amount-prefix" style="font-size: 1.1rem; color: var(--success);">R$</span>
+            <input
+              type="text"
+              id="income-amount-input"
+              class="amount-input"
+              style="font-size: 1.35rem; padding: 10px 12px 10px 44px;"
+              placeholder="0,00"
+              inputmode="decimal"
+              value="${initialVal}"
+            />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Tipo de Entrada</label>
+          <div class="pill-group">
+            <div class="pill-option ${incomeType === 'salary' ? 'active' : ''}" data-inc-type="salary">💼 Salário</div>
+            <div class="pill-option ${incomeType === 'extra' ? 'active' : ''}" data-inc-type="extra">✨ Extra / Bônus</div>
+            <div class="pill-option ${incomeType === 'reimbursement' ? 'active' : ''}" data-inc-type="reimbursement">🔄 Recebido</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Descrição</label>
+          <input
+            type="text"
+            id="income-desc-input"
+            class="text-input"
+            placeholder="Ex: Salário Mensal, 13º, Freelance, Aluguel recebido..."
+            value="${(existingIncome?.description || 'Salário Mensal').replace(/"/g, '&quot;')}"
+          />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Quem Recebeu</label>
+          <div class="pill-group">
+            <div class="pill-option ${receivedBy === 'ricardo' ? 'active ricardo' : ''}" data-inc-user="ricardo">
+              Ricardo
+            </div>
+            <div class="pill-option ${receivedBy === 'natalia' ? 'active natalia' : ''}" data-inc-user="natalia">
+              Natália
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Data do Recebimento</label>
+          <input type="date" id="income-date-input" class="text-input" value="${defaultDate}" />
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-top: 18px;">
+          <button type="button" id="cancel-income-btn" class="settings-btn" style="flex: 1; justify-content: center; margin: 0;">Cancelar</button>
+          <button type="button" id="save-income-btn" class="submit-btn" style="flex: 1; padding: 10px;">Salvar Entrada</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const amountInput = modal.querySelector('#income-amount-input') as HTMLInputElement;
+    const descInput = modal.querySelector('#income-desc-input') as HTMLInputElement;
+
+    setTimeout(() => amountInput?.focus(), 80);
+
+    amountInput?.addEventListener('input', () => {
+      const val = amountInput.value.replace(/\D/g, '');
+      if (!val) {
+        amountInput.value = '';
+        return;
+      }
+      const cents = parseInt(val, 10);
+      amountInput.value = (cents / 100).toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    });
+
+    modal.querySelectorAll('[data-inc-type]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const t = el.getAttribute('data-inc-type') as IncomeType;
+        if (t) {
+          incomeType = t;
+          modal.querySelectorAll('[data-inc-type]').forEach((item) => {
+            item.classList.toggle('active', item.getAttribute('data-inc-type') === incomeType);
+          });
+          if (!existingIncome) {
+            if (t === 'salary' && (!descInput.value || descInput.value === 'Entrada Extra' || descInput.value === 'Pagamento Recebido')) {
+              descInput.value = 'Salário Mensal';
+            } else if (t === 'extra' && descInput.value === 'Salário Mensal') {
+              descInput.value = 'Entrada Extra';
+            } else if (t === 'reimbursement' && (descInput.value === 'Salário Mensal' || descInput.value === 'Entrada Extra')) {
+              descInput.value = 'Pagamento Recebido';
+            }
+          }
+        }
+      });
+    });
+
+    modal.querySelectorAll('[data-inc-user]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const u = el.getAttribute('data-inc-user') as UserProfile;
+        if (u) {
+          receivedBy = u;
+          modal.querySelectorAll('[data-inc-user]').forEach((item) => {
+            const val = item.getAttribute('data-inc-user');
+            item.className = `pill-option ${val === receivedBy ? `active ${val}` : ''}`;
+          });
+        }
+      });
+    });
+
+    modal.querySelector('#cancel-income-btn')?.addEventListener('click', () => modal.remove());
+
+    modal.querySelector('#save-income-btn')?.addEventListener('click', async () => {
+      const cents = parseCurrencyInput(amountInput.value);
+      const desc = descInput.value.trim();
+      const dateVal = (modal.querySelector('#income-date-input') as HTMLInputElement).value || defaultDate;
+
+      if (cents <= 0) {
+        showToast('⚠️ Informe um valor válido maior que zero.');
+        amountInput.focus();
+        return;
+      }
+      if (!desc) {
+        showToast('⚠️ Informe a descrição da entrada.');
+        return;
+      }
+
+      if (existingIncome) {
+        await store.updateIncome({
+          ...existingIncome,
+          yearMonth: dateVal.slice(0, 7),
+          date: dateVal,
+          description: desc,
+          amountCents: cents,
+          receivedBy,
+          type: incomeType
+        });
+        showToast('✅ Entrada atualizada com sucesso!');
+      } else {
+        await store.addIncome({
+          yearMonth: dateVal.slice(0, 7),
+          date: dateVal,
+          description: desc,
+          amountCents: cents,
+          receivedBy,
+          type: incomeType
+        });
+        showToast('✅ Entrada registrada com sucesso!');
+      }
+
+      modal.remove();
+    });
   }
 
   function showAddRuleModal() {
@@ -151,7 +357,6 @@ export function renderSettingsView(container: HTMLElement, showToast: (msg: stri
 
       modal.remove();
       showToast(`✅ Regra para "${keyword.toUpperCase()}" criada com sucesso!`);
-      renderSettingsView(container, showToast);
     });
   }
 
@@ -177,6 +382,12 @@ export function renderSettingsView(container: HTMLElement, showToast: (msg: stri
           <label class="form-label">Ícone / Emoji</label>
           <input type="text" id="cat-icon-input" class="text-input" placeholder="Ex: ✈️" value="🏷️" />
         </div>
+        <div class="form-group">
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; cursor: pointer;">
+            <input type="checkbox" id="cat-essential-check" />
+            <span>É custo essencial da família/casa (Regra 50-30-20)</span>
+          </label>
+        </div>
         <div style="display: flex; gap: 8px; margin-top: 20px;">
           <button id="cancel-cat-btn" class="settings-btn" style="flex: 1; justify-content: center;">Cancelar</button>
           <button id="save-cat-btn" class="submit-btn" style="flex: 1; padding: 10px;">Criar Categoria</button>
@@ -190,6 +401,7 @@ export function renderSettingsView(container: HTMLElement, showToast: (msg: stri
     modal.querySelector('#save-cat-btn')?.addEventListener('click', async () => {
       const name = (modal.querySelector('#cat-name-input') as HTMLInputElement).value.trim();
       const icon = (modal.querySelector('#cat-icon-input') as HTMLInputElement).value.trim() || '🏷️';
+      const isEssential = (modal.querySelector('#cat-essential-check') as HTMLInputElement).checked;
 
       if (!name) {
         showToast('⚠️ Informe o nome da categoria.');
@@ -201,12 +413,12 @@ export function renderSettingsView(container: HTMLElement, showToast: (msg: stri
         icon,
         color: '#6366f1',
         isActive: true,
-        isSystem: false
+        isSystem: false,
+        isEssential
       });
 
       modal.remove();
       showToast(`✅ Categoria "${name}" criada com sucesso!`);
-      renderSettingsView(container, showToast);
     });
   }
 
@@ -298,7 +510,6 @@ export function renderSettingsView(container: HTMLElement, showToast: (msg: stri
         onConnected.then(() => {
           showToast('🎉 Sincronização P2P concluída com sucesso!');
           modal.remove();
-          renderSettingsView(container, showToast);
         });
       } catch (err) {
         showToast('ℹ️ Modo demonstrativo ativo.');
@@ -327,7 +538,6 @@ export function renderSettingsView(container: HTMLElement, showToast: (msg: stri
         onConnected.then(() => {
           showToast('🎉 Sincronização P2P concluída com sucesso!');
           modal.remove();
-          renderSettingsView(container, showToast);
         });
       } catch (err) {
         showToast('⚠️ Código inválido ou erro de conexão local.');
@@ -341,6 +551,77 @@ export function renderSettingsView(container: HTMLElement, showToast: (msg: stri
   }
 
   container.innerHTML = `
+    <!-- Seção de Cadastro Mensal de Entradas / Salários (Obs 3) -->
+    <div class="settings-section" style="border-color: hsla(152, 76%, 45%, 0.4);">
+      <div class="card-title" style="margin-bottom: 8px;">
+        <span>💰 Entradas e Salários do Mês</span>
+        <button id="btn-add-income" class="submit-btn" style="width: auto; padding: 6px 12px; font-size: 0.75rem;">
+          + Nova Entrada
+        </button>
+      </div>
+
+      <!-- Seletor de Mês para as Entradas -->
+      <div class="month-selector" style="margin-bottom: 12px; padding: 6px 10px;">
+        <button class="month-btn" id="settings-prev-month-btn">◀</button>
+        <span class="month-title" style="font-size: 0.9rem;">${formatMonthYearBR(selectedMonth)}</span>
+        <button class="month-btn" id="settings-next-month-btn">▶</button>
+      </div>
+
+      <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 12px;">
+        Cadastre salários, entradas extras e valores recebidos no mês para alimentar as análises de equilíbrio e distribuição da renda.
+      </p>
+
+      <!-- Resumo Rápido de Entradas do Mês -->
+      <div class="split-stats" style="margin-bottom: 12px;">
+        <div class="split-user ricardo" style="padding: 8px;">
+          <div class="split-user-name">Entradas Ricardo</div>
+          <div class="split-user-val" style="font-size: 0.95rem;">${formatCurrency(ricardoIncomeCents)}</div>
+        </div>
+        <div class="split-user natalia" style="padding: 8px;">
+          <div class="split-user-name">Entradas Natália</div>
+          <div class="split-user-val" style="font-size: 0.95rem;">${formatCurrency(nataliaIncomeCents)}</div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: var(--bg-input); border-radius: var(--radius-sm); margin-bottom: 10px; font-size: 0.82rem;">
+        <span style="color: var(--text-muted);">Renda Combinada (${formatMonthYearBR(selectedMonth)}):</span>
+        <strong style="color: var(--success); font-size: 0.95rem;">${formatCurrency(totalIncomeCents)}</strong>
+      </div>
+
+      <!-- Lista de Entradas Cadastradas no Mês -->
+      <div style="max-height: 200px; overflow-y: auto;">
+        ${
+          monthIncomes.length === 0
+            ? `<div style="text-align: center; font-size: 0.8rem; color: var(--text-muted); padding: 12px 0;">Nenhuma entrada cadastrada para este mês.</div>`
+            : monthIncomes
+                .map((inc) => {
+                  const typeLabel =
+                    inc.type === 'salary' ? '💼 Salário' : inc.type === 'extra' ? '✨ Extra' : '🔄 Recebido';
+                  return `
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 6px; border-bottom: 1px solid var(--border-subtle); font-size: 0.82rem;">
+              <div>
+                <div style="font-weight: 600; color: var(--text-main);">${inc.description}</div>
+                <div style="font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px; margin-top: 2px;">
+                  <span>${typeLabel}</span>
+                  <span>•</span>
+                  <span class="tx-badge ${inc.receivedBy}">${inc.receivedBy === 'ricardo' ? 'Ricardo' : 'Natália'}</span>
+                  <span>•</span>
+                  <span>${formatDateBR(inc.date)}</span>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <strong style="color: var(--success);">${formatCurrency(inc.amountCents)}</strong>
+                <button data-edit-inc="${inc.id}" style="background: none; border: none; cursor: pointer; font-size: 0.85rem;" title="Editar entrada">✏️</button>
+                <button data-del-inc="${inc.id}" style="background: none; border: none; cursor: pointer; color: var(--danger); font-size: 0.85rem;" title="Excluir entrada">🗑️</button>
+              </div>
+            </div>
+          `;
+                })
+                .join('')
+        }
+      </div>
+    </div>
+
     <!-- Perfil do Aparelho -->
     <div class="settings-section">
       <div class="card-title">
@@ -487,7 +768,31 @@ export function renderSettingsView(container: HTMLElement, showToast: (msg: stri
     </div>
   `;
 
-  // Listeners
+  // Listeners de Entradas
+  container.querySelector('#settings-prev-month-btn')?.addEventListener('click', () => store.prevMonth());
+  container.querySelector('#settings-next-month-btn')?.addEventListener('click', () => store.nextMonth());
+  container.querySelector('#btn-add-income')?.addEventListener('click', () => showIncomeModal());
+
+  container.querySelectorAll('[data-edit-inc]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-edit-inc');
+      const target = monthIncomes.find((i) => i.id === id);
+      if (target) showIncomeModal(target);
+    });
+  });
+
+  container.querySelectorAll('[data-del-inc]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-del-inc');
+      const target = monthIncomes.find((i) => i.id === id);
+      if (id && target && window.confirm(`Deseja excluir a entrada "${target.description}"?`)) {
+        await store.deleteIncome(id);
+        showToast('🗑️ Entrada removida.');
+      }
+    });
+  });
+
+  // Listeners Gerais
   container.querySelectorAll('[data-set-profile]').forEach((el) => {
     el.addEventListener('click', async () => {
       const p = el.getAttribute('data-set-profile') as UserProfile;
@@ -506,7 +811,6 @@ export function renderSettingsView(container: HTMLElement, showToast: (msg: stri
       const id = btn.getAttribute('data-toggle-cat');
       if (id) {
         await store.toggleCategory(id);
-        renderSettingsView(container, showToast);
       }
     });
   });
@@ -516,7 +820,6 @@ export function renderSettingsView(container: HTMLElement, showToast: (msg: stri
       const id = btn.getAttribute('data-toggle-rule');
       if (id) {
         await store.toggleRule(id);
-        renderSettingsView(container, showToast);
       }
     });
   });
@@ -527,7 +830,6 @@ export function renderSettingsView(container: HTMLElement, showToast: (msg: stri
       if (id) {
         await store.deleteRule(id);
         showToast('Regra excluída.');
-        renderSettingsView(container, showToast);
       }
     });
   });
@@ -541,7 +843,6 @@ export function renderSettingsView(container: HTMLElement, showToast: (msg: stri
     if (window.confirm('Deseja restaurar as transações fictícias iniciais?')) {
       await store.restoreMockData();
       showToast('🔄 Banco de dados restaurado!');
-      renderSettingsView(container, showToast);
     }
   });
 }

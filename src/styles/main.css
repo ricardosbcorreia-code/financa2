@@ -164,10 +164,10 @@ body {
   font-weight: 500;
   gap: 4px;
   cursor: pointer;
-  padding: 6px 12px;
+  padding: 6px 8px;
   border-radius: var(--radius-md);
   transition: all 0.2s ease;
-  min-width: 64px;
+  min-width: 54px;
 }
 
 .nav-item:hover {

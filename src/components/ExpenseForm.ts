@@ -8,8 +8,12 @@ export function renderExpenseForm(container: HTMLElement, showToast: (msg: strin
   const rules = store.getRules();
   const activeProfile = store.getActiveProfile();
 
-  // Estados locais do formulário
-  let selectedCategoryId = categories[1]?.id || categories[0]?.id; // Padrão: Alimentação
+  // Estados locais completos do formulário (Obs 1: nenhum campo digitado é perdido ao trocar opções)
+  let amountText = '';
+  let descText = '';
+  let dateValue = getTodayIso();
+  let notesText = '';
+  let selectedCategoryId = categories.find((c) => c.isActive)?.id || categories[0]?.id;
   let selectedPaidBy: UserProfile = activeProfile;
   let selectedNature: ExpenseNature = 'familiar';
   let isExpanded = false;
@@ -17,7 +21,21 @@ export function renderExpenseForm(container: HTMLElement, showToast: (msg: strin
   let installmentTotal = 2;
   let selectedPaymentMethod: PaymentMethod = 'credito';
 
-  function updateView(): void {
+  function syncInputsToState(): void {
+    const amountEl = container.querySelector('#expense-amount') as HTMLInputElement | null;
+    const descEl = container.querySelector('#expense-desc') as HTMLInputElement | null;
+    const dateEl = container.querySelector('#expense-date') as HTMLInputElement | null;
+    const notesEl = container.querySelector('#expense-notes') as HTMLInputElement | null;
+
+    if (amountEl) amountText = amountEl.value;
+    if (descEl) descText = descEl.value;
+    if (dateEl) dateValue = dateEl.value;
+    if (notesEl) notesText = notesEl.value;
+  }
+
+  function updateView(autoFocusAmount: boolean = false): void {
+    syncInputsToState();
+
     container.innerHTML = `
       <div class="form-card">
         <div class="form-title">
@@ -38,6 +56,7 @@ export function renderExpenseForm(container: HTMLElement, showToast: (msg: strin
                 placeholder="0,00"
                 inputmode="decimal"
                 autocomplete="off"
+                value="${amountText}"
                 required
               />
             </div>
@@ -52,6 +71,7 @@ export function renderExpenseForm(container: HTMLElement, showToast: (msg: strin
               class="text-input"
               placeholder="Ex: Supermercado, Farmácia, Posto..."
               autocomplete="off"
+              value="${descText.replace(/"/g, '&quot;')}"
               required
             />
             <div id="suggestion-container"></div>
@@ -116,7 +136,7 @@ export function renderExpenseForm(container: HTMLElement, showToast: (msg: strin
           </div>
 
           <!-- Seção Detalhes Opcionais Recolhida por Padrão -->
-          <div class="expandable-content" style="display: ${isExpanded ? 'block' : 'none'};">
+          <div class="expandable-content" id="expandable-details-box" style="display: ${isExpanded ? 'block' : 'none'};">
             <!-- Forma de Pagamento -->
             <div class="form-group">
               <label class="form-label">Forma de Pagamento</label>
@@ -148,13 +168,13 @@ export function renderExpenseForm(container: HTMLElement, showToast: (msg: strin
             <!-- Data Ocorrência -->
             <div class="form-group">
               <label class="form-label" for="expense-date">Data da Compra</label>
-              <input type="date" id="expense-date" class="text-input" value="${getTodayIso()}" />
+              <input type="date" id="expense-date" class="text-input" value="${dateValue}" />
             </div>
 
             <!-- Observações -->
             <div class="form-group">
               <label class="form-label" for="expense-notes">Observações</label>
-              <input type="text" id="expense-notes" class="text-input" placeholder="Detalhes opcionais..." />
+              <input type="text" id="expense-notes" class="text-input" placeholder="Detalhes opcionais..." value="${notesText.replace(/"/g, '&quot;')}" />
             </div>
           </div>
 
@@ -166,41 +186,45 @@ export function renderExpenseForm(container: HTMLElement, showToast: (msg: strin
       </div>
     `;
 
-    bindEvents();
+    bindEvents(autoFocusAmount);
   }
 
-  function bindEvents(): void {
+  function bindEvents(autoFocusAmount: boolean): void {
     const form = container.querySelector('#expense-form') as HTMLFormElement;
     const amountInput = container.querySelector('#expense-amount') as HTMLInputElement;
     const descInput = container.querySelector('#expense-desc') as HTMLInputElement;
+    const dateInput = container.querySelector('#expense-date') as HTMLInputElement;
+    const notesInput = container.querySelector('#expense-notes') as HTMLInputElement;
     const suggestionBox = container.querySelector('#suggestion-container') as HTMLElement;
     const toggleDetailsBtn = container.querySelector('#toggle-details-btn') as HTMLButtonElement;
+    const expandableBox = container.querySelector('#expandable-details-box') as HTMLElement;
     const isInstallmentCheck = container.querySelector('#is-installment-check') as HTMLInputElement;
     const installmentSelect = container.querySelector('#installment-total-select') as HTMLSelectElement;
 
-    // Foco automático no campo de valor para lançamento rápido
-    setTimeout(() => amountInput?.focus(), 150);
+    if (autoFocusAmount) {
+      setTimeout(() => amountInput?.focus(), 120);
+    }
 
-    // Formatação de valor monetário em tempo real
+    // Formatação de valor monetário em tempo real + sincronização de estado
     amountInput?.addEventListener('input', () => {
-      // Deixa digitar números e formata amigavelmente
-      let val = amountInput.value.replace(/\D/g, '');
+      const val = amountInput.value.replace(/\D/g, '');
       if (val === '') {
         amountInput.value = '';
+        amountText = '';
         return;
       }
       const cents = parseInt(val, 10);
       amountInput.value = (cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      amountText = amountInput.value;
     });
 
     // Sugestão Inteligente ao Digitar a Descrição
     descInput?.addEventListener('input', () => {
-      const query = descInput.value;
-      const match = suggestCategory(query, rules, categories);
+      descText = descInput.value;
+      const match = suggestCategory(descText, rules, categories);
 
       if (match) {
         selectedCategoryId = match.category.id;
-        // Atualiza botões de categoria visualmente
         container.querySelectorAll('.chip-btn').forEach((btn) => {
           const catId = btn.getAttribute('data-cat-id');
           btn.classList.toggle('active', catId === selectedCategoryId);
@@ -217,7 +241,15 @@ export function renderExpenseForm(container: HTMLElement, showToast: (msg: strin
       }
     });
 
-    // Seleção de Categoria Manual
+    dateInput?.addEventListener('change', () => {
+      dateValue = dateInput.value;
+    });
+
+    notesInput?.addEventListener('input', () => {
+      notesText = notesInput.value;
+    });
+
+    // Seleção de Categoria Manual (sem recriar DOM)
     container.querySelectorAll('.chip-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         const catId = btn.getAttribute('data-cat-id');
@@ -229,32 +261,43 @@ export function renderExpenseForm(container: HTMLElement, showToast: (msg: strin
       });
     });
 
-    // Seleção de Pagador
+    // Seleção de Pagador (atualiza classes sem destruir o DOM nem perder campos digitados)
     container.querySelectorAll('[data-payer]').forEach((el) => {
       el.addEventListener('click', () => {
         const payer = el.getAttribute('data-payer') as UserProfile;
         if (payer) {
           selectedPaidBy = payer;
-          updateView();
+          container.querySelectorAll('[data-payer]').forEach((item) => {
+            const p = item.getAttribute('data-payer');
+            item.className = `pill-option ${p === selectedPaidBy ? `active ${p}` : ''}`;
+          });
         }
       });
     });
 
-    // Seleção de Natureza
+    // Seleção de Natureza (atualiza classes sem destruir o DOM)
     container.querySelectorAll('[data-nature]').forEach((el) => {
       el.addEventListener('click', () => {
         const nature = el.getAttribute('data-nature') as ExpenseNature;
         if (nature) {
           selectedNature = nature;
-          updateView();
+          container.querySelectorAll('[data-nature]').forEach((item) => {
+            const n = item.getAttribute('data-nature');
+            item.classList.toggle('active', n === selectedNature);
+          });
         }
       });
     });
 
-    // Toggle de Detalhes
+    // Toggle de Detalhes Opcionais (sem destruir o DOM)
     toggleDetailsBtn?.addEventListener('click', () => {
       isExpanded = !isExpanded;
-      updateView();
+      if (expandableBox) {
+        expandableBox.style.display = isExpanded ? 'block' : 'none';
+      }
+      toggleDetailsBtn.innerHTML = `<span>${
+        isExpanded ? '▼ Ocultar Detalhes Secundários' : '▶ + Detalhes Opcionais (Parcelas, Cartão, Data)'
+      }</span>`;
     });
 
     // Toggle de Parcelamento
@@ -298,13 +341,9 @@ export function renderExpenseForm(container: HTMLElement, showToast: (msg: strin
         return;
       }
 
-      const dateInput = container.querySelector('#expense-date') as HTMLInputElement;
-      const notesInput = container.querySelector('#expense-notes') as HTMLInputElement;
-
       const date = dateInput?.value || getTodayIso();
       const notes = notesInput?.value.trim() || undefined;
 
-      // Adicionar à Store Reativa
       store.addTransaction({
         date,
         description: desc,
@@ -319,12 +358,13 @@ export function renderExpenseForm(container: HTMLElement, showToast: (msg: strin
         notes
       });
 
-      showToast(`✅ Despesa de ${(cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} gravada com sucesso!`);
+      showToast(
+        `✅ Despesa de ${(cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} gravada com sucesso!`
+      );
 
-      // Redireciona para o Painel para ver os novos números
       store.setActiveTab('dashboard');
     });
   }
 
-  updateView();
+  updateView(true);
 }

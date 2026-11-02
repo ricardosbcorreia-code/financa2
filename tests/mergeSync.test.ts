@@ -155,4 +155,46 @@ describe('5. Testes de Sincronização, Mesclagem e Conflitos (Fase 5)', () => {
     const activeTxs = result.mergedTransactions.filter((t) => !t.deletedAt);
     expect(activeTxs.length).toBe(0);
   });
+
+  it('deve detectar suspeita de duplicidade quando mesmo valor e categoria têm descrição diferente nos aparelhos (Obs 4)', () => {
+    const localTxs: Transaction[] = [
+      {
+        id: 'tx-ric-99',
+        date: '2026-10-18',
+        description: 'Supermercado Extra',
+        amountCents: 35000, // R$ 350,00
+        paidBy: 'ricardo',
+        categoryId: 'cat-1',
+        nature: 'familiar',
+        isInstallment: false,
+        isRefund: false,
+        createdAt: '2026-10-18T10:00:00Z',
+        updatedAt: '2026-10-18T10:00:00Z'
+      }
+    ];
+
+    const remoteTxs: Transaction[] = [
+      {
+        id: 'tx-nat-99',
+        date: '2026-10-18',
+        description: 'Compras do mês mercado',
+        amountCents: 35000, // Mesmo valor R$ 350,00
+        paidBy: 'natalia',
+        categoryId: 'cat-1', // Mesma categoria
+        nature: 'familiar',
+        isInstallment: false,
+        isRefund: false,
+        createdAt: '2026-10-18T11:00:00Z',
+        updatedAt: '2026-10-18T11:00:00Z'
+      }
+    ];
+
+    const result = mergeDatasets(localTxs, remoteTxs, localCats, localCats, localRules, localRules);
+
+    // Deve gerar 1 conflito pendente para escolha do usuário e não duplicar imediatamente
+    expect(result.conflicts.length).toBe(1);
+    expect(result.conflicts[0].localTx.description).toBe('Supermercado Extra');
+    expect(result.conflicts[0].remoteTx.description).toBe('Compras do mês mercado');
+    expect(result.mergedTransactions.length).toBe(1);
+  });
 });

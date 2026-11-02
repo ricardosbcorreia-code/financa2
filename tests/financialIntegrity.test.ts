@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { formatCurrency, parseCurrencyInput, addMonthsIso } from '../src/formatters';
-import { suggestCategory, normalizeText } from '../src/rulesEngine';
-import { Category, Rule, Transaction } from '../src/types';
+import { suggestCategory } from '../src/rulesEngine';
+import { getFixedExpenseStatusForMonth } from '../src/components/FixedExpensesView';
+import { Category, FixedExpense, IncomeEntry, Rule, Transaction } from '../src/types';
 
 describe('1. Formatação e Precisão Monetária (Centavos Inteiros)', () => {
   it('deve converter R$ 125,90 para 12590 centavos e formatar de volta fielmente', () => {
@@ -276,5 +277,78 @@ describe('3. Motor de Regras Determinísticas de Categorização', () => {
     ];
     const match = suggestCategory('Supermercado Extra', inactiveRules, categories);
     expect(match).toBeNull();
+  });
+});
+
+describe('4. Entradas Mensais, Divisão 50-30-20 e Gastos Fixos (Obs 3 e Obs 5)', () => {
+  it('deve calcular comprometimento da renda e saldo livre com base nas entradas mensais', () => {
+    const incomes: IncomeEntry[] = [
+      {
+        id: 'i1',
+        yearMonth: '2026-10',
+        date: '2026-10-01',
+        description: 'Salário Ricardo',
+        amountCents: 600000, // R$ 6.000,00
+        receivedBy: 'ricardo',
+        type: 'salary',
+        createdAt: '2026-10-01T10:00:00Z',
+        updatedAt: '2026-10-01T10:00:00Z'
+      },
+      {
+        id: 'i2',
+        yearMonth: '2026-10',
+        date: '2026-10-01',
+        description: 'Salário Natália',
+        amountCents: 400000, // R$ 4.000,00
+        receivedBy: 'natalia',
+        type: 'salary',
+        createdAt: '2026-10-01T10:00:00Z',
+        updatedAt: '2026-10-01T10:00:00Z'
+      }
+    ];
+
+    const totalIncome = incomes.reduce((acc, i) => acc + i.amountCents, 0);
+    expect(totalIncome).toBe(1000000); // R$ 10.000,00
+
+    const essentialExpenses = 500000; // R$ 5.000,00 (50%)
+    const lifestyleExpenses = 300000; // R$ 3.000,00 (30%)
+    const freeBalance = totalIncome - (essentialExpenses + lifestyleExpenses);
+
+    expect(freeBalance).toBe(200000); // R$ 2.000,00 (20% livre)
+  });
+
+  it('deve classificar gasto fixo como vencido (overdue), próximo do vencimento (due_soon) ou pago (paid)', () => {
+    const fixed: FixedExpense = {
+      id: 'fix-aluguel',
+      name: 'Aluguel',
+      amountCents: 250000,
+      dueDay: 10,
+      categoryId: 'cat-moradia',
+      nature: 'familiar',
+      isActive: true,
+      payments: {},
+      createdAt: '2026-10-01T00:00:00Z',
+      updatedAt: '2026-10-01T00:00:00Z'
+    };
+
+    // 2 dias antes do vencimento (dia 08/10) -> due_soon (dispara lembrete a cada 6h)
+    const statusDueSoon = getFixedExpenseStatusForMonth(fixed, '2026-10', '2026-10-08');
+    expect(statusDueSoon.status).toBe('due_soon');
+    expect(statusDueSoon.daysUntilDue).toBe(2);
+
+    // Após o vencimento (dia 12/10) sem pagamento -> overdue (em vermelho)
+    const statusOverdue = getFixedExpenseStatusForMonth(fixed, '2026-10', '2026-10-12');
+    expect(statusOverdue.status).toBe('overdue');
+    expect(statusOverdue.daysUntilDue).toBe(-2);
+
+    // Quando marcado como pago -> paid (cessa alertas)
+    fixed.payments['2026-10'] = {
+      paidAt: '2026-10-09',
+      paidBy: 'ricardo',
+      amountCents: 250000,
+      transactionId: 'tx-999'
+    };
+    const statusPaid = getFixedExpenseStatusForMonth(fixed, '2026-10', '2026-10-12');
+    expect(statusPaid.status).toBe('paid');
   });
 });

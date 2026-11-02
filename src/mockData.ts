@@ -1,19 +1,19 @@
-import { Category, Rule, Transaction } from './types';
+import { Category, FixedExpense, IncomeEntry, Rule, Transaction } from './types';
 
 export const INITIAL_CATEGORIES: Category[] = [
-  { id: 'cat-moradia', name: 'Moradia', icon: '🏠', color: '#3b82f6', isActive: true, isSystem: true },
-  { id: 'cat-alimentacao', name: 'Alimentação e supermercado', icon: '🛒', color: '#10b981', isActive: true, isSystem: true },
-  { id: 'cat-transporte', name: 'Transporte e veículos', icon: '🚗', color: '#f59e0b', isActive: true, isSystem: true },
-  { id: 'cat-saude', name: 'Saúde', icon: '💊', color: '#ef4444', isActive: true, isSystem: true },
-  { id: 'cat-filhos', name: 'Filhos e educação', icon: '🎓', color: '#8b5cf6', isActive: true, isSystem: true },
-  { id: 'cat-pets', name: 'Pets', icon: '🐾', color: '#ec4899', isActive: true, isSystem: true },
-  { id: 'cat-lazer', name: 'Lazer e restaurantes', icon: '🍕', color: '#14b8a6', isActive: true, isSystem: true },
-  { id: 'cat-assinaturas', name: 'Assinaturas e serviços', icon: '📱', color: '#6366f1', isActive: true, isSystem: true },
-  { id: 'cat-compras', name: 'Compras pessoais', icon: '🛍️', color: '#f97316', isActive: true, isSystem: true },
-  { id: 'cat-dividas', name: 'Dívidas e encargos', icon: '💳', color: '#64748b', isActive: true, isSystem: true },
-  { id: 'cat-patrimonio', name: 'Patrimônio e reformas', icon: '🔨', color: '#0ea5e9', isActive: true, isSystem: true },
-  { id: 'cat-impostos', name: 'Impostos e taxas', icon: '📄', color: '#a855f7', isActive: true, isSystem: true },
-  { id: 'cat-outros', name: 'Outros', icon: '📦', color: '#94a3b8', isActive: true, isSystem: true }
+  { id: 'cat-moradia', name: 'Moradia', icon: '🏠', color: '#3b82f6', isActive: true, isSystem: true, isEssential: true },
+  { id: 'cat-alimentacao', name: 'Alimentação e supermercado', icon: '🛒', color: '#10b981', isActive: true, isSystem: true, isEssential: true },
+  { id: 'cat-transporte', name: 'Transporte e veículos', icon: '🚗', color: '#f59e0b', isActive: true, isSystem: true, isEssential: true },
+  { id: 'cat-saude', name: 'Saúde', icon: '💊', color: '#ef4444', isActive: true, isSystem: true, isEssential: true },
+  { id: 'cat-filhos', name: 'Filhos e educação', icon: '🎓', color: '#8b5cf6', isActive: true, isSystem: true, isEssential: true },
+  { id: 'cat-pets', name: 'Pets', icon: '🐾', color: '#ec4899', isActive: true, isSystem: true, isEssential: false },
+  { id: 'cat-lazer', name: 'Lazer e restaurantes', icon: '🍕', color: '#14b8a6', isActive: true, isSystem: true, isEssential: false },
+  { id: 'cat-assinaturas', name: 'Assinaturas e serviços', icon: '📱', color: '#6366f1', isActive: true, isSystem: true, isEssential: false },
+  { id: 'cat-compras', name: 'Compras pessoais', icon: '🛍️', color: '#f97316', isActive: true, isSystem: true, isEssential: false },
+  { id: 'cat-dividas', name: 'Dívidas e encargos', icon: '💳', color: '#64748b', isActive: true, isSystem: true, isEssential: true },
+  { id: 'cat-patrimonio', name: 'Patrimônio e reformas', icon: '🔨', color: '#0ea5e9', isActive: true, isSystem: true, isEssential: true },
+  { id: 'cat-impostos', name: 'Impostos e taxas', icon: '📄', color: '#a855f7', isActive: true, isSystem: true, isEssential: true },
+  { id: 'cat-outros', name: 'Outros', icon: '📦', color: '#94a3b8', isActive: true, isSystem: true, isEssential: false }
 ];
 
 export const INITIAL_RULES: Rule[] = [
@@ -34,6 +34,139 @@ export const INITIAL_RULES: Rule[] = [
   { id: 'rule-15', keyword: 'RESTAURANTE', categoryId: 'cat-lazer', matchType: 'contains', isActive: true }
 ];
 
+export const INITIAL_MOCK_INCOMES: IncomeEntry[] = [
+  {
+    id: 'inc-101',
+    yearMonth: '2026-10',
+    date: '2026-10-01',
+    description: 'Salário Mensal',
+    amountCents: 650000, // R$ 6.500,00
+    receivedBy: 'ricardo',
+    type: 'salary',
+    createdAt: '2026-10-01T08:00:00Z',
+    updatedAt: '2026-10-01T08:00:00Z'
+  },
+  {
+    id: 'inc-102',
+    yearMonth: '2026-10',
+    date: '2026-10-01',
+    description: 'Salário Mensal',
+    amountCents: 580000, // R$ 5.800,00
+    receivedBy: 'natalia',
+    type: 'salary',
+    createdAt: '2026-10-01T08:05:00Z',
+    updatedAt: '2026-10-01T08:05:00Z'
+  },
+  {
+    id: 'inc-103',
+    yearMonth: '2026-10',
+    date: '2026-10-15',
+    description: 'Projeto Extra Consultoria',
+    amountCents: 90000, // R$ 900,00
+    receivedBy: 'ricardo',
+    type: 'extra',
+    createdAt: '2026-10-15T10:00:00Z',
+    updatedAt: '2026-10-15T10:00:00Z'
+  },
+  {
+    id: 'inc-201',
+    yearMonth: '2026-09',
+    date: '2026-09-01',
+    description: 'Salário Mensal',
+    amountCents: 650000,
+    receivedBy: 'ricardo',
+    type: 'salary',
+    createdAt: '2026-09-01T08:00:00Z',
+    updatedAt: '2026-09-01T08:00:00Z'
+  },
+  {
+    id: 'inc-202',
+    yearMonth: '2026-09',
+    date: '2026-09-01',
+    description: 'Salário Mensal',
+    amountCents: 580000,
+    receivedBy: 'natalia',
+    type: 'salary',
+    createdAt: '2026-09-01T08:05:00Z',
+    updatedAt: '2026-09-01T08:05:00Z'
+  }
+];
+
+export const INITIAL_MOCK_FIXED_EXPENSES: FixedExpense[] = [
+  {
+    id: 'fix-1',
+    name: 'Condomínio do Apartamento',
+    amountCents: 85000, // R$ 850,00
+    dueDay: 5,
+    categoryId: 'cat-moradia',
+    nature: 'familiar',
+    paymentMethod: 'pix',
+    isActive: true,
+    payments: {
+      '2026-10': {
+        paidAt: '2026-10-02',
+        paidBy: 'ricardo',
+        amountCents: 85000,
+        transactionId: 'tx-101'
+      },
+      '2026-09': {
+        paidAt: '2026-09-02',
+        paidBy: 'ricardo',
+        amountCents: 85000,
+        transactionId: 'tx-201'
+      }
+    },
+    createdAt: '2026-09-01T10:00:00Z',
+    updatedAt: '2026-10-02T10:00:00Z'
+  },
+  {
+    id: 'fix-2',
+    name: 'Internet Fibra 600MB',
+    amountCents: 12990, // R$ 129,90
+    dueDay: 15,
+    categoryId: 'cat-moradia',
+    nature: 'familiar',
+    paymentMethod: 'pix',
+    isActive: true,
+    payments: {},
+    createdAt: '2026-09-01T10:00:00Z',
+    updatedAt: '2026-09-01T10:00:00Z'
+  },
+  {
+    id: 'fix-3',
+    name: 'Seguro do Carro',
+    amountCents: 24900, // R$ 249,00
+    dueDay: 20,
+    categoryId: 'cat-transporte',
+    nature: 'familiar',
+    paymentMethod: 'credito',
+    isActive: true,
+    payments: {},
+    createdAt: '2026-09-01T10:00:00Z',
+    updatedAt: '2026-09-01T10:00:00Z'
+  },
+  {
+    id: 'fix-4',
+    name: 'Assinatura Netflix & Spotify',
+    amountCents: 7980, // R$ 79,80
+    dueDay: 23,
+    categoryId: 'cat-assinaturas',
+    nature: 'familiar',
+    paymentMethod: 'credito',
+    isActive: true,
+    payments: {
+      '2026-10': {
+        paidAt: '2026-10-23',
+        paidBy: 'ricardo',
+        amountCents: 7980,
+        transactionId: 'tx-110'
+      }
+    },
+    createdAt: '2026-09-01T10:00:00Z',
+    updatedAt: '2026-10-23T08:00:00Z'
+  }
+];
+
 // Dados fictícios para teste e visualização do protótipo (Outubro e Setembro de 2026)
 export const INITIAL_MOCK_TRANSACTIONS: Transaction[] = [
   // Outubro 2026
@@ -47,6 +180,7 @@ export const INITIAL_MOCK_TRANSACTIONS: Transaction[] = [
     nature: 'familiar',
     paymentMethod: 'pix',
     isInstallment: false,
+    fixedExpenseId: 'fix-1',
     isRefund: false,
     createdAt: '2026-10-02T10:00:00Z',
     updatedAt: '2026-10-02T10:00:00Z'
@@ -175,6 +309,7 @@ export const INITIAL_MOCK_TRANSACTIONS: Transaction[] = [
     nature: 'familiar',
     paymentMethod: 'credito',
     isInstallment: false,
+    fixedExpenseId: 'fix-4',
     isRefund: false,
     createdAt: '2026-10-23T08:00:00Z',
     updatedAt: '2026-10-23T08:00:00Z'
@@ -182,7 +317,7 @@ export const INITIAL_MOCK_TRANSACTIONS: Transaction[] = [
   {
     id: 'tx-111',
     date: '2026-10-24',
-    description: 'Geladeira Nova (Parcela 1/10)',
+    description: 'Geladeira Nova (1/10)',
     amountCents: 28900, // R$ 289,00
     paidBy: 'ricardo',
     categoryId: 'cat-patrimonio',
@@ -191,6 +326,24 @@ export const INITIAL_MOCK_TRANSACTIONS: Transaction[] = [
     isInstallment: true,
     installmentGroupId: 'grp-geladeira',
     installmentNumber: 1,
+    installmentTotal: 10,
+    isRefund: false,
+    notes: 'Compra das Casas Bahia',
+    createdAt: '2026-10-24T15:00:00Z',
+    updatedAt: '2026-10-24T15:00:00Z'
+  },
+  {
+    id: 'tx-112',
+    date: '2026-11-24',
+    description: 'Geladeira Nova (2/10)',
+    amountCents: 28900, // R$ 289,00
+    paidBy: 'ricardo',
+    categoryId: 'cat-patrimonio',
+    nature: 'familiar',
+    paymentMethod: 'credito',
+    isInstallment: true,
+    installmentGroupId: 'grp-geladeira',
+    installmentNumber: 2,
     installmentTotal: 10,
     isRefund: false,
     notes: 'Compra das Casas Bahia',
@@ -209,6 +362,7 @@ export const INITIAL_MOCK_TRANSACTIONS: Transaction[] = [
     nature: 'familiar',
     paymentMethod: 'pix',
     isInstallment: false,
+    fixedExpenseId: 'fix-1',
     isRefund: false,
     createdAt: '2026-09-02T10:00:00Z',
     updatedAt: '2026-09-02T10:00:00Z'
